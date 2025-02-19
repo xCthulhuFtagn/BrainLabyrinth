@@ -4,3 +4,4 @@ runs/
 test_set.pt
 train_set.pt
 val_set.pt
+train_set_smol.pt
