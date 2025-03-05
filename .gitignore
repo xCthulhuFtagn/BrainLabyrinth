@@ -5,3 +5,13 @@ test_set.pt
 train_set.pt
 val_set.pt
 train_set_smol.pt
+__pycache__/dataset.cpython-310.pyc
+__pycache__/dataset.cpython-310.pyc
+__pycache__/dataset.cpython-310.pyc
+test_set_GPT.pt
+train_set_smol_GPT.pt
+val_set_GPT.pt
+__pycache__/dataset.cpython-310.pyc
+__pycache__/EEGPT_mcae_finetune.cpython-310.pyc
+__pycache__/model.cpython-310.pyc
+checkpoint/eegpt_mcae_58chs_4s_large4E.ckpt
