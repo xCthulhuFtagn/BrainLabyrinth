@@ -3,6 +3,7 @@ import numpy as np
 
 import torch
 from torch.utils.data import Dataset
+from sklearn.preprocessing import MinMaxScaler
 
 from tqdm.notebook import tqdm
 
@@ -223,41 +224,51 @@ class EEGDataset(Dataset):
 #============================================================
 
 class EEGPTDataset(Dataset):
-    def __init__(self, source, max_length=2000, is_train=False):
+    def __init__(self, source, max_length=1024, for_train=True, scaler=None):
+        # Load the data from a file if source is a path.
         self.df = pl.read_parquet(source) if isinstance(source, str) else source
-        self.is_train = is_train
-
-        if 'orig_marker' in self.df.columns:
-            self.df = self.df.drop('orig_marker')
-
-        self.df = self.df.with_columns([
-            pl.col("marker")
-            .cast(pl.Utf8)
-            .str.replace_all("Left", "0") # replace exact string "Left" with "0"
-            .str.replace_all("Right", "1") # replace exact string "Right" with "1"
-            .cast(pl.Int32) # now cast the string "0"/"1" -> int
-            .alias("marker"),
-            pl.col("prev_marker")
-            .cast(pl.Utf8)
-            .str.replace_all("Left", "0")
-            .str.replace_all("Right", "1")
-            .cast(pl.Int32)
-            .alias("prev_marker"),
-        ])
-
-        self.event_ids = self.df['event_id'].unique().to_list()
+        self.for_train = for_train
         self.max_length = max_length
 
-        # # Keep time for sorting but exclude from features
-        # self.feature_cols = [c for c in self.df.columns
-        #                      if c not in {'event_id', 'marker', 'time', 'prev_marker'}]
-        
+        # Preprocess markers and drop unwanted columns.
+        if 'orig_marker' in self.df.columns:
+            self.df = self.df.drop('orig_marker')
+        self.df = self.df.with_columns([
+            pl.col("marker")
+              .cast(pl.Utf8)
+              .str.replace_all("Left", "0")
+              .str.replace_all("Right", "1")
+              .cast(pl.Int32)
+              .alias("marker"),
+            pl.col("prev_marker")
+              .cast(pl.Utf8)
+              .str.replace_all("Left", "0")
+              .str.replace_all("Right", "1")
+              .cast(pl.Int32)
+              .alias("prev_marker"),
+        ])
+
+        # Define feature columns (the list of channels, for example)
+        self.feature_cols = [
+            "FP2", "FPZ", "FP1", "AF4", "AF3", "F7", "F5", "F3", "F6", "F1",
+            "FZ", "F2", "F4", "F8", "FT7", "FC5", "FC3", "FC6", "FC1", "FCZ",
+            "FC2", "FC4", "FT8", "T7", "C5", "C3", "C6", "C1", "CZ", "C2",
+            "C4", "T8", "TP7", "CP5", "CP3", "CP6", "CP1", "CPZ", "CP2", "CP4",
+            "TP8", "P7", "P5", "P3", "P6", "P1", "PZ", "P2", "P4", "P8",
+            "O1", "PO7", "PO3", "O2", "OZ", "PO4", "PO8", "POZ"
+        ]
+
+        # Use a private attribute to store the scaler.
+        self._scaler = scaler  # If provided externally, otherwise will be fitted in _precompute_samples
+
+        # Get unique event ids (used for splitting and sample extraction)
+        self.event_ids = self.df['event_id'].unique().to_list()
+
         print("Precomputing samples...")
         self._precompute_samples()
-
         print("Computing class weights...")
         self._class_weights = self.compute_class_weights()
-
+   
     @property
     def class_weights(self):
         # Expose the computed weights as a property.
@@ -269,53 +280,45 @@ class EEGPTDataset(Dataset):
     def __getitem__(self, idx):
         return self.samples[idx]
 
+    def _pad_sequence(self, tensor):
+        padded = torch.zeros((self.max_length, tensor.size(1)), dtype=tensor.dtype)
+        length = min(tensor.size(0), self.max_length)
+        padded[:length] = tensor[:length]
+        return padded
+
     def _precompute_samples(self):
+        # If training and no scaler is provided, fit one on all feature data.
+        if self._scaler is None and self.for_train:
+            X_full = self.df.select(self.feature_cols).to_numpy()
+            self._scaler = MinMaxScaler().fit(X_full)
+        
         self.samples = []
-        for event_id in tqdm(self.event_ids, desc='precomputing_samples'):
-            # Sort by time within each event!
+        for event_id in tqdm(self.event_ids, desc='Precomputing Samples'):
+            # Sort event data by time.
             event_data = self.df.filter(pl.col("event_id") == event_id).sort("time")
-            features = torch.tensor(
-                event_data.select(self.feature_cols).to_numpy(),
-                dtype=torch.float32
-            )
+            X_event = event_data.select(self.feature_cols).to_numpy()
+            # Apply scaling if a scaler is available.
+            if self._scaler is not None:
+                X_event = self._scaler.transform(X_event)
+            features = torch.tensor(X_event, dtype=torch.float32)
             features = self._pad_sequence(features)
             label = event_data['marker'][0]
-            self.samples.append((
-                torch.tensor(label, dtype=torch.float32),
-                features
-            ))
+            self.samples.append((torch.tensor(label, dtype=torch.float32), features))
 
     def compute_class_weights(self):
-        """
-        Compute inverse frequency weights based on the 'marker' column.
-        """
-        # Get unique combinations of event_id and marker.
         unique_events = self.df.select(["event_id", "marker"]).unique()
-
-        # Use value_counts on the "marker" column.
         counts_df = unique_events["marker"].value_counts()
-
-        # We'll use 'values' if it exists, otherwise 'marker'.
         d = { (row.get("values") or row.get("marker")): row["count"]
               for row in counts_df.to_dicts() }
-
         weight_0 = 1.0 / d.get(0, 1)
         weight_1 = 1.0 / d.get(1, 1)
-
-        return {0: weight_0, 1: weight_1}
+        return {"Left": weight_0, "Right": weight_1}
 
     def split_dataset(self, ratios=(0.7, 0.15, 0.15), seed=None):
-        """
-        Splits the dataset into three EEGDataset instances for train, val, and test.
-        This method shuffles the event_ids and then partitions them based on the given ratios.
-        """
         if seed is not None:
             np.random.seed(seed)
-
-        # Copy and shuffle the event_ids
         event_ids = self.event_ids.copy()
         np.random.shuffle(event_ids)
-
         total = len(event_ids)
         n_train = int(ratios[0] * total)
         n_val = int(ratios[1] * total)
@@ -324,24 +327,15 @@ class EEGPTDataset(Dataset):
         val_ids = event_ids[n_train:n_train+n_val]
         test_ids = event_ids[n_train+n_val:]
 
-        # Filter self.df for the selected event_ids
         train_df = self.df.filter(pl.col("event_id").is_in(train_ids))
         val_df = self.df.filter(pl.col("event_id").is_in(val_ids))
         test_df = self.df.filter(pl.col("event_id").is_in(test_ids))
 
-        # Create new EEGDataset instances using the filtered data
-        train_set = EEGDataset(train_df, self.max_length, is_train=True)
-        val_set = EEGDataset(val_df, self.max_length, is_train=False)
-        test_set = EEGDataset(test_df, self.max_length, is_train=False)
-
+        # For validation and test sets, pass the scaler fitted on the training set.
+        train_set = EEGPTDataset(train_df, self.max_length, for_train=True)
+        val_set = EEGPTDataset(val_df, self.max_length, for_train=False, scaler=train_set._scaler)
+        test_set = EEGPTDataset(test_df, self.max_length, for_train=False, scaler=train_set._scaler)
         return train_set, val_set, test_set
-
-    def _pad_sequence(self, tensor):
-        # Pre-allocate tensor for maximum efficiency
-        padded = torch.zeros((self.max_length, tensor.size(1)), dtype=tensor.dtype)
-        length = min(tensor.size(0), self.max_length)
-        padded[:length] = tensor[:length]
-        return padded
 
     def rebalance_by_tsmote(self):
         """TSMOTE implementation for temporal EEG data"""

@@ -55,8 +55,8 @@ class EEGPTWrapper(nn.Module):
         
         self.eegpt = EEGPTClassifier(
             num_classes=0,            
-            in_channels=62,
-            img_size=[62, 256*4],      # 62 channels, 4s * 256Hz
+            in_channels=58,
+            img_size=[58, 256*4],      # 62 channels, 4s * 256Hz
             patch_stride=64,
             desired_time_len=256*4,
             use_channels_names=channel_list,
