@@ -37,18 +37,18 @@ class EEGDataset(Dataset):
         self.max_length = max_length
         
         # Keep time for sorting but exclude from features
-        # self.feature_cols = [c for c in self.df.columns 
-        #                    if c not in {'event_id', 'marker', 'time', 'prev_marker'}]
-        self.feature_cols = [      
-            'FP1', 'FPZ', 'FP2', "AF7", 'AF3', 'AF4', "AF8", 
-            'F7', 'F5', 'F3', 'F1', 'FZ', 'F2', 'F4', 'F6', 'F8', 
-            'FT7', 'FC5', 'FC3', 'FC1', 'FCZ', 'FC2', 'FC4', 'FC6', 
-            'FT8', 'T7', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'C6', 
-            'T8', 'TP7', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 
-            'CP6', 'TP8', 'P7', 'P5', 'P3', 'P1', 'PZ', 'P2', 'P4', 
-            'P6', 'P8', 'PO7', "PO5", 'PO3', 'POZ', 'PO4', "PO6", 
-            'PO8', 'O1', 'OZ', 'O2'
-        ]
+        self.feature_cols = [c for c in self.df.columns 
+                           if c not in {'event_id', 'marker', 'time', 'prev_marker'}]
+        # self.feature_cols = [      
+        #     'FP1', 'FPZ', 'FP2', "AF7", 'AF3', 'AF4', "AF8", 
+        #     'F7', 'F5', 'F3', 'F1', 'FZ', 'F2', 'F4', 'F6', 'F8', 
+        #     'FT7', 'FC5', 'FC3', 'FC1', 'FCZ', 'FC2', 'FC4', 'FC6', 
+        #     'FT8', 'T7', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'C6', 
+        #     'T8', 'TP7', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 
+        #     'CP6', 'TP8', 'P7', 'P5', 'P3', 'P1', 'PZ', 'P2', 'P4', 
+        #     'P6', 'P8', 'PO7', "PO5", 'PO3', 'POZ', 'PO4', "PO6", 
+        #     'PO8', 'O1', 'OZ', 'O2'
+        # ]
         
         print("Precomputing samples...")
         self._precompute_samples()
@@ -250,13 +250,20 @@ class EEGPTDataset(Dataset):
 
         # Define feature columns (the list of channels, for example)
         self.feature_cols = [
-            "FP2", "FPZ", "FP1", "AF4", "AF3", "F7", "F5", "F3", "F6", "F1",
-            "FZ", "F2", "F4", "F8", "FT7", "FC5", "FC3", "FC6", "FC1", "FCZ",
-            "FC2", "FC4", "FT8", "T7", "C5", "C3", "C6", "C1", "CZ", "C2",
-            "C4", "T8", "TP7", "CP5", "CP3", "CP6", "CP1", "CPZ", "CP2", "CP4",
-            "TP8", "P7", "P5", "P3", "P6", "P1", "PZ", "P2", "P4", "P8",
-            "O1", "PO7", "PO3", "O2", "OZ", "PO4", "PO8", "POZ"
+            'FP1', 'FPZ', 'FP2', 'AF3', 'AF4', 
+            'F7', 'F5', 'F3', 'F1', 'FZ', 
+            'F2', 'F4', 'F6', 'F8', 'FT7', 
+            'FC5', 'FC3', 'FC1', 'FCZ', 'FC2', 
+            'FC4', 'FC6', 'FT8', 'T7', 'C5', 
+            'C3', 'C1', 'CZ', 'C2', 'C4', 
+            'C6', 'T8', 'TP7', 'CP5', 'CP3', 
+            'CP1', 'CPZ', 'CP2', 'CP4', 'CP6', 
+            'TP8', 'P7', 'P5', 'P3', 'P1', 
+            'PZ', 'P2', 'P4', 'P6', 'P8', 
+            'PO7', 'PO3', 'POZ',  'PO4', 'PO8', 
+            'O1', 'OZ', 'O2' 
         ]
+
 
         # Use a private attribute to store the scaler.
         self._scaler = scaler  # If provided externally, otherwise will be fitted in _precompute_samples

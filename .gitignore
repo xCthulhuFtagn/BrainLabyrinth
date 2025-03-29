@@ -15,3 +15,4 @@ __pycache__/dataset.cpython-310.pyc
 __pycache__/EEGPT_mcae_finetune.cpython-310.pyc
 __pycache__/model.cpython-310.pyc
 checkpoint/eegpt_mcae_58chs_4s_large4E.ckpt
+ML_dataset.parquet

@@ -79,13 +79,9 @@ class EEGPTWrapper(nn.Module):
         for param in self.eegpt.head.parameters():
             param.requires_grad = True
             
-        # Unfreeze last 2 transformer layers
+        # # Unfreeze last 2 transformer layers
         # for param in self.eegpt.target_encoder.blocks[-2:].parameters():
         #     param.requires_grad = True
-
-        # 3). Add your own classifier head
-        #    (the pretrained model's `d_model` dimension is in self.eegpt.hparams)
-        # self.classifier = nn.Linear(self.eegpt.embed_dim, num_classes)
 
     def forward(self, x):
         """
