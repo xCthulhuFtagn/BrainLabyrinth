@@ -15,4 +15,16 @@ __pycache__/dataset.cpython-310.pyc
 __pycache__/EEGPT_mcae_finetune.cpython-310.pyc
 __pycache__/model.cpython-310.pyc
 checkpoint/eegpt_mcae_58chs_4s_large4E.ckpt
-ML_dataset.parquet
+temp_large_window_files
+final_selected_features_large_window.joblib
+fs_scaler_large_window.joblib
+fs_scaler_model.joblib
+ML_dataset_large_window_features.parquet
+trained_models_in_memory
+final_selected_features_500.joblib
+final_selected_features_1000.joblib
+final_selected_features.joblib
+fs_scaler_500.joblib
+fs_scaler_1000.joblib
+ML_dataset_500_features.parquet
+ML_dataset_1000_features.parquet
