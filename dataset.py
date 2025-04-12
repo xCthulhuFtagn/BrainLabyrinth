@@ -7,14 +7,16 @@ from torch.utils.data import Dataset
 from tqdm.notebook import tqdm
 
 from utils import TSMOTE
+
+
 #============================================================
 # Enhanced Dataset Class with Proper Encapsulation
 #============================================================
 class EEGDatasetV2(Dataset):
     def __init__(self, source, max_length=2000):
         self.df = pl.read_parquet(source) if isinstance(source, str) else source
-        if 'orig_marker' in self.df.columns:
-            self.df = self.df.drop('orig_marker')
+        # if 'orig_marker' in self.df.columns:
+        #     self.df = self.df.drop('orig_marker')
         
         self.df = self.df.with_columns([
             pl.col("marker")
@@ -39,11 +41,12 @@ class EEGDatasetV2(Dataset):
             .alias("prev_prev_marker"),
         ])
         
+        print(self.df.columns)
         self.event_ids = self.df['event_id'].unique().to_list()
         self.max_length = max_length
         # Keep time for sorting but exclude from features
         self.feature_cols = [c for c in self.df.columns 
-                           if c not in {'event_id', 'marker', 'time'}]
+                           if c not in {'event_id', 'marker', 'time', 'orig_marker'}]
         
         print("Precomputing samples...")
         self._precompute_samples()
@@ -73,9 +76,12 @@ class EEGDatasetV2(Dataset):
             features = self._pad_sequence(features)
             
             label = event_data['marker'][0]
+
+            original_label = event_data['orig_marker'][0] == 'Stimulus/P'
             self.samples.append((
                 torch.tensor(label, dtype=torch.float32), 
-                features
+                features,
+                torch.tensor(original_label, dtype=torch.float32)
             ))
     
     def compute_class_weights(self):
@@ -123,9 +129,9 @@ class EEGDatasetV2(Dataset):
         test_df  = self.df.filter(pl.col("event_id").is_in(test_ids))
         
         # Create new EEGDataset instances using the filtered data
-        train_set = EEGDataset(train_df, self.max_length)
-        val_set   = EEGDataset(val_df, self.max_length)
-        test_set  = EEGDataset(test_df, self.max_length)
+        train_set = EEGDatasetV2(train_df, self.max_length)
+        val_set   = EEGDatasetV2(val_df, self.max_length)
+        test_set  = EEGDatasetV2(test_df, self.max_length)
         
         return train_set, val_set, test_set
 
@@ -215,7 +221,7 @@ class EEGDatasetV2(Dataset):
         return self
 
 
-class EEGDataset(Dataset):
+class V2EEGDataset(Dataset):
     def __init__(self, source, max_length=2000):
         self.df = pl.read_parquet(source) if isinstance(source, str) else source
         if 'orig_marker' in self.df.columns:
