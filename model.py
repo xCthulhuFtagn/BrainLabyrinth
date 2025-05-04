@@ -37,5 +37,4 @@ class EEGMobileNet(nn.Module):
         )
 
     def forward(self, x):
-        x = x.transpose(1, 2)  # your original transpose
-        return self.model(x).squeeze(1)
+        return self.model(x)#.squeeze(1)

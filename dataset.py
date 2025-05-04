@@ -41,13 +41,12 @@ class EEGDatasetV2(Dataset):
             .alias("prev_prev_marker"),
         ])
         
-        print(self.df.columns)
         self.event_ids = self.df['event_id'].unique().to_list()
         self.max_length = max_length
         # Keep time for sorting but exclude from features
         self.feature_cols = [c for c in self.df.columns 
                            if c not in {'event_id', 'marker', 'time', 'orig_marker'}]
-        
+        print(self.feature_cols)
         print("Precomputing samples...")
         self._precompute_samples()
         print("Computing class weights...")
